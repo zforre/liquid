@@ -362,6 +362,34 @@ class TemplateTest < Minitest::Test
     assert_equal('12345', result)
   end
 
+  def test_render_overrides_context_static_register_when_register_key_does_exist
+    disabled_tags_for_test = DisabledTags.new
+    Template.add_register(:disabled_tags, disabled_tags_for_test)
+
+    t = Template.parse("{% if true %} Test Template {% endif %}")
+
+    context = Context.new
+    refute(context.registers.key?(:disabled_tags))
+
+    t.render(context)
+
+    assert(context.registers.key?(:disabled_tags))
+    assert_equal(disabled_tags_for_test, context.registers[:disabled_tags])
+  end
+
+  def test_render_does_not_override_context_static_register_when_register_key_exists
+    context = Context.new
+    context.registers[:random_register] = nil
+    Template.add_register(:random_register, {})
+
+    t = Template.parse("{% if true %} Test Template {% endif %}")
+
+    t.render(context)
+
+    assert_nil(context.registers[:random_register])
+    assert(context.registers.key?(:random_register))
+  end
+
   unless taint_supported?
     def test_taint_mode
       assert_raises(NotImplementedError) do

@@ -168,6 +168,28 @@ class RenderTagTest < Minitest::Test
     assert_template_result('include usage is not allowed in this contextinclude usage is not allowed in this context', '{% render "nested_render_with_sibling_include" %}')
   end
 
+  def test_render_tag_uses_correct_disabled_tags_instance
+    Liquid::Template.file_system = StubFileSystem.new(
+      'foo' => 'bar',
+      'test_include' => '{% include "foo" %}'
+    )
+
+    source = "{% render 'test_include' %}"
+    tag = Render.parse("render", source, Tokenizer.new("", true), ParseContext.new)
+
+    buffer = +""
+    context = Context.new
+    disabled_tags = DisabledTags.new
+    context.registers[:disabled_tags] = disabled_tags
+
+    context.registers[:disabled_tags].disable(tag.disabled_tags) do
+      tag.render_tag(context, buffer)
+      assert_equal('include usage is not allowed in this context', buffer)
+    end
+
+    assert_equal(disabled_tags, context.registers[:disabled_tags])
+  end
+
   def test_render_tag_with
     Liquid::Template.file_system = StubFileSystem.new(
       'product' => "Product: {{ product.title }} ",
